@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using URLShortener.Infrastructure.Database;
+using URLShortener.Models;
+using URLShortener.Repository;
+using URLShortener.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,8 +13,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Services
+builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();
 
-// Entity Framework
+// Repository
+builder.Services.AddScoped<IUrlShortenerRepository, UrlShortenerRepository>();
+
+// Entity Framework   
 builder.Services.AddDbContext<StoreContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("StoreConnection"));
