@@ -35,10 +35,10 @@ namespace URLShortener.Controllers
             {
                 return BadRequest("El código corto no puede estar vacío");
             }
-
             try
             {
-                var originalUrl = await _urlShortenerService.GetOriginalUrlAsync(shortcode);
+                var userAgent = Request.Headers["User-Agent"].ToString();
+                var originalUrl = await _urlShortenerService.GetOriginalUrlAsync(shortcode, userAgent);
                 return RedirectPermanentPreserveMethod(originalUrl);
             }
             catch (KeyNotFoundException)

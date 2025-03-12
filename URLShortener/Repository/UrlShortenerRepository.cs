@@ -31,6 +31,9 @@ namespace URLShortener.Repository
             await _context.SaveChangesAsync();
         }
 
-
+        public async Task AddUrlAccess(UrlAccess urlAccess)
+        {
+            await _context.UrlAccesses.AddAsync(urlAccess);
+        }
     }
 }

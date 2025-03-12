@@ -19,7 +19,7 @@ namespace URLShortener.Services
             _urlRepository = urlRepository;
         }
 
-        public async Task<string> GetOriginalUrlAsync(string shortcode)
+        public async Task<string> GetOriginalUrlAsync(string shortcode, string userAgent)
         {
             var shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
             if (shortenedUrl == null || !shortenedUrl.IsActive || (shortenedUrl.ExpiresAt.HasValue && shortenedUrl.ExpiresAt.Value < DateTime.UtcNow))
@@ -28,7 +28,16 @@ namespace URLShortener.Services
             }
 
             shortenedUrl.AccessCount++;
-            shortenedUrl.LastAccessedAt = DateTime.UtcNow;
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+            shortenedUrl.LastAccessedAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+
+            var urlAccess = new UrlAccess
+            {
+                ShortenedUrlId = shortenedUrl.Id,
+                AccessedAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo),
+                UserAgent = userAgent
+            };
+            await _urlRepository.AddUrlAccess(urlAccess);
             await _urlRepository.SaveChangesAsync();
             return shortenedUrl.OriginalUrl;
         }
