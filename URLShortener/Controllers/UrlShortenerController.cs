@@ -37,7 +37,7 @@ namespace URLShortener.Controllers
             }
             try
             {
-                var userAgent = Request.Headers["User-Agent"].ToString();
+                var userAgent = Request.Headers.UserAgent.ToString();
                 var originalUrl = await _urlShortenerService.GetOriginalUrlAsync(shortcode, userAgent);
                 return RedirectPermanentPreserveMethod(originalUrl);
             }

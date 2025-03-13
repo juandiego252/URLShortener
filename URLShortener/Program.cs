@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using URLShortener.Infrastructure.cache;
 using URLShortener.Infrastructure.Database;
 using URLShortener.Models;
 using URLShortener.Repository;
@@ -6,8 +8,18 @@ using URLShortener.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
+// Redis
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = builder.Configuration.GetConnectionString("Redis");
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+// Cache Service
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
+
+// Add services to the container.
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
