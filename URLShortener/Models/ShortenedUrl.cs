@@ -15,8 +15,6 @@ namespace URLShortener.Models
         [Required]
         public string ShortCode { get; set; }
         public DateTime CreatedAt { get; set; }
-
-        public DateTime? ExpiresAt { get; set; }
         public bool IsActive { get; set; } = true;
         public int AccessCount { get; set; } = 0;
         public DateTime? LastAccessedAt { get; set; }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Data;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using URLShortener.DTOs;
 using URLShortener.Infrastructure.cache;
@@ -25,7 +26,7 @@ namespace URLShortener.Services
 
         public async Task<string> GetOriginalUrlAsync(string shortcode, string userAgent)
         {
-            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+
             string cacheKey = $"shortcode:{shortcode}";
             var shortenedUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
             DateTime nowDateTime = DateTime.UtcNow.ToLocalTime();
@@ -33,7 +34,7 @@ namespace URLShortener.Services
             if (shortenedUrl == null)
             {
                 shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
-                if (shortenedUrl == null || !shortenedUrl.IsActive || (shortenedUrl.ExpiresAt.HasValue && shortenedUrl.ExpiresAt.Value < nowDateTime))
+                if (shortenedUrl == null || !shortenedUrl.IsActive)
                 {
                     throw new KeyNotFoundException("URL not found or expired");
                 }
@@ -42,14 +43,14 @@ namespace URLShortener.Services
             }
 
             shortenedUrl.AccessCount++;
-            shortenedUrl.LastAccessedAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+            shortenedUrl.LastAccessedAt = nowDateTime;
 
             await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
 
             var urlAccess = new UrlAccess
             {
                 ShortenedUrlId = shortenedUrl.Id,
-                AccessedAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo),
+                AccessedAt = nowDateTime,
                 UserAgent = userAgent
             };
             await _urlRepository.AddUrlAccess(urlAccess);
@@ -60,7 +61,6 @@ namespace URLShortener.Services
         public async Task<ShortenedUrlDto> ShortenUrlAsync(string originalUrl)
         {
             string cacheKey = $"originalUrl:{originalUrl}";
-            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
 
             // Verificar si existe la url en la cache
             var existUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
@@ -84,14 +84,13 @@ namespace URLShortener.Services
                     ShortCode = existUrl.ShortCode,
                     ShortenedUrl = BaseUrl + existUrl.ShortCode,
                     CreatedAt = existUrl.CreatedAt,
-                    ExpiresAt = existUrl.ExpiresAt
                 };
 
             }
 
             string shortCode = await GenerateUniqueShortCodeAsync();
 
-            DateTime createdAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+            DateTime createdAt = DateTime.UtcNow.ToLocalTime();
             DateTime expiresAt = createdAt.Add(TimeSpan.FromHours(3));
 
 
@@ -100,7 +99,6 @@ namespace URLShortener.Services
                 OriginalUrl = originalUrl,
                 ShortCode = shortCode,
                 CreatedAt = createdAt,
-                ExpiresAt = expiresAt,
                 AccessLogs = new List<UrlAccess>()
             };
 
@@ -116,7 +114,6 @@ namespace URLShortener.Services
                 ShortCode = newEntry.ShortCode,
                 ShortenedUrl = BaseUrl + newEntry.ShortCode,
                 CreatedAt = newEntry.CreatedAt,
-                ExpiresAt = newEntry.ExpiresAt,
             };
         }
 
@@ -147,6 +144,55 @@ namespace URLShortener.Services
             }
 
             return code;
+        }
+        public async Task<ShortenedUrlDto> RenewShortenUrlAsync(string shortcode, string userAgent)
+        {
+
+            string cacheKey = $"shortcode:{shortcode}";
+            var shortenedUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
+            DateTime nowDateTime = DateTime.UtcNow.ToLocalTime();
+
+            if (shortenedUrl == null)
+            {
+                shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
+                if (shortenedUrl == null || !shortenedUrl.IsActive)
+                {
+                    throw new KeyNotFoundException("URL not found");
+                }
+                await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
+            }
+
+            //if (shortenedUrl.ExpiresAt.HasValue && shortenedUrl.ExpiresAt.Value < nowDateTime)
+            //{
+            //    shortenedUrl.ExpiresAt = nowDateTime.AddHours(3);
+            //}
+            //else
+            //{
+            //    shortenedUrl.ExpiresAt = nowDateTime.AddHours(3);
+            //}
+
+            shortenedUrl.AccessCount++;
+            shortenedUrl.LastAccessedAt = nowDateTime;
+
+            await _urlRepository.SaveChangesAsync();
+            await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
+
+            var urlAccess = new UrlAccess
+            {
+                ShortenedUrlId = shortenedUrl.Id,
+                AccessedAt = nowDateTime,
+                UserAgent = userAgent
+            };
+            await _urlRepository.AddUrlAccess(urlAccess);
+            await _urlRepository.SaveChangesAsync();
+            await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
+            return new ShortenedUrlDto
+            {
+                OriginalUrl = shortenedUrl.OriginalUrl,
+                ShortCode = shortenedUrl.ShortCode,
+                ShortenedUrl = BaseUrl + shortenedUrl.ShortCode,
+                CreatedAt = shortenedUrl.CreatedAt,
+            };
         }
     }
 }

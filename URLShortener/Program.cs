@@ -37,8 +37,6 @@ builder.Services.AddDbContext<StoreContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StoreConnection"));
 });
 
-
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

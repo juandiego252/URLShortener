@@ -46,5 +46,25 @@ namespace URLShortener.Controllers
                 return NotFound("URL no encontrada o expirada");
             }
         }
+
+        [HttpPut("{shortcode}")]
+
+        public async Task<IActionResult> RenewShortenUrl(string shortcode)
+        {
+            if (string.IsNullOrWhiteSpace(shortcode))
+            {
+                return BadRequest("El código corto no puede ser vacio");
+            }
+            var userAgent = Request.Headers.UserAgent.ToString();
+            try
+            {
+                var result = await _urlShortenerService.RenewShortenUrlAsync(shortcode, userAgent);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("No se pudo renovar la url");
+            }
+        }
     }
 }
