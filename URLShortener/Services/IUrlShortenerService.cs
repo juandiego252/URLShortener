@@ -6,7 +6,5 @@ namespace URLShortener.Services
     {
         Task<ShortenedUrlDto> ShortenUrlAsync(string originalUrl);
         Task<string> GetOriginalUrlAsync(string shortcode, string userAgent);
-
-        Task<ShortenedUrlDto> RenewShortenUrlAsync(string shortcode, string userAgent);
     }
 }

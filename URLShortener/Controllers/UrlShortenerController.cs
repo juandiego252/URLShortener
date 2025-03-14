@@ -1,6 +1,9 @@
 ﻿using System.Linq.Expressions;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using URLShortener.DTOs;
 using URLShortener.Services;
 
 namespace URLShortener.Controllers
@@ -10,10 +13,12 @@ namespace URLShortener.Controllers
     public class UrlShortenerController : ControllerBase
     {
         private readonly IUrlShortenerService _urlShortenerService;
+        private readonly IValidator<ShortenedUrlDto> _urlShortCodeValidator;
 
-        public UrlShortenerController(IUrlShortenerService urlShortenerService)
+        public UrlShortenerController(IUrlShortenerService urlShortenerService, IValidator<ShortenedUrlDto> urlShortCodeValidator)
         {
             _urlShortenerService = urlShortenerService;
+            _urlShortCodeValidator = urlShortCodeValidator;
         }
 
         [HttpPost("shorten")]
@@ -31,9 +36,11 @@ namespace URLShortener.Controllers
         [HttpGet("{shortcode}")]
         public async Task<IActionResult> GetOriginalUrl(string shortcode)
         {
-            if (string.IsNullOrWhiteSpace(shortcode))
+            ValidationResult validationResult = _urlShortCodeValidator.ValidateAsync(new ShortenedUrlDto { ShortCode = shortcode }).Result;
+
+            if (!validationResult.IsValid)
             {
-                return BadRequest("El código corto no puede estar vacío");
+                return BadRequest(validationResult.Errors);
             }
             try
             {
@@ -44,26 +51,6 @@ namespace URLShortener.Controllers
             catch (KeyNotFoundException)
             {
                 return NotFound("URL no encontrada o expirada");
-            }
-        }
-
-        [HttpPut("{shortcode}")]
-
-        public async Task<IActionResult> RenewShortenUrl(string shortcode)
-        {
-            if (string.IsNullOrWhiteSpace(shortcode))
-            {
-                return BadRequest("El código corto no puede ser vacio");
-            }
-            var userAgent = Request.Headers.UserAgent.ToString();
-            try
-            {
-                var result = await _urlShortenerService.RenewShortenUrlAsync(shortcode, userAgent);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound("No se pudo renovar la url");
             }
         }
     }

@@ -35,5 +35,18 @@ namespace URLShortener.Repository
         {
             await _context.UrlAccesses.AddAsync(urlAccess);
         }
+
+        public ShortenedUrl IncrementAccessCount(ShortenedUrl shortenedUrl, UrlAccess urlAccess)
+        {
+            // Incrementa el contador de accesos
+            shortenedUrl.AccessCount++;
+            // Actualiza la fecha de último acceso
+            shortenedUrl.LastAccessedAt = urlAccess.AccessedAt;
+            // Agrega el acceso a la colección de accesos
+            shortenedUrl.AccessLogs.Add(urlAccess);
+            // Actualiza el estado de la entidad
+            _context.Entry(shortenedUrl).State = EntityState.Modified;
+            return shortenedUrl;
+        }
     }
 }

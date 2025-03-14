@@ -1,10 +1,13 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using URLShortener.DTOs;
 using URLShortener.Infrastructure.cache;
 using URLShortener.Infrastructure.Database;
 using URLShortener.Models;
 using URLShortener.Repository;
 using URLShortener.Services;
+using URLShortener.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +27,9 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Validators
+builder.Services.AddScoped<IValidator<ShortenedUrlDto>, UrlShortCodeValidator>();
 
 // Services
 builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();

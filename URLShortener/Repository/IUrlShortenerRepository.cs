@@ -8,6 +8,7 @@ namespace URLShortener.Repository
         Task<ShortenedUrl> GetByOriginalUrlCodeAsync(string orignalUrl);
         Task AddAsync(ShortenedUrl url);
         Task AddUrlAccess(UrlAccess urlAccess);
+        ShortenedUrl IncrementAccessCount(ShortenedUrl shortenedUrl, UrlAccess urlAccess);
         Task SaveChangesAsync();
     }
 }

@@ -28,24 +28,45 @@ namespace URLShortener.Services
         {
 
             string cacheKey = $"shortcode:{shortcode}";
-            var shortenedUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
+            var cachedUrl = await _cacheService.GetAsync<ShortenedUrlCacheDto>(cacheKey);
             DateTime nowDateTime = DateTime.UtcNow.ToLocalTime();
 
-            if (shortenedUrl == null)
+            ShortenedUrl shortenedUrl;
+
+            if (cachedUrl == null)
             {
                 shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
                 if (shortenedUrl == null || !shortenedUrl.IsActive)
                 {
-                    throw new KeyNotFoundException("URL not found or expired");
+                    throw new KeyNotFoundException("URL not found or Inactive");
                 }
 
-                await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
+                var cacheDto = new ShortenedUrlCacheDto
+                {
+                    Id = shortenedUrl.Id,
+                    OriginalUrl = shortenedUrl.OriginalUrl,
+                    ShortCode = shortenedUrl.ShortCode,
+                    CreatedAt = shortenedUrl.CreatedAt,
+                    IsActive = shortenedUrl.IsActive,
+                    AccessCount = shortenedUrl.AccessCount,
+                    LastAccessedAt = shortenedUrl.LastAccessedAt
+                };
+
+                await _cacheService.SetAsync(cacheKey, cacheDto, _cacheExpiration);
             }
-
-            shortenedUrl.AccessCount++;
-            shortenedUrl.LastAccessedAt = nowDateTime;
-
-            await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
+            else
+            {
+                shortenedUrl = new ShortenedUrl
+                {
+                    Id = cachedUrl.Id,
+                    OriginalUrl = cachedUrl.OriginalUrl,
+                    ShortCode = cachedUrl.ShortCode,
+                    CreatedAt = cachedUrl.CreatedAt,
+                    IsActive = cachedUrl.IsActive,
+                    AccessCount = cachedUrl.AccessCount,
+                    LastAccessedAt = cachedUrl.LastAccessedAt
+                };
+            }
 
             var urlAccess = new UrlAccess
             {
@@ -53,8 +74,23 @@ namespace URLShortener.Services
                 AccessedAt = nowDateTime,
                 UserAgent = userAgent
             };
-            await _urlRepository.AddUrlAccess(urlAccess);
+
+            shortenedUrl = _urlRepository.IncrementAccessCount(shortenedUrl, urlAccess);
             await _urlRepository.SaveChangesAsync();
+
+            var UpdatedCacheDto = new ShortenedUrlCacheDto
+            {
+                Id = shortenedUrl.Id,
+                OriginalUrl = shortenedUrl.OriginalUrl,
+                ShortCode = shortenedUrl.ShortCode,
+                CreatedAt = shortenedUrl.CreatedAt,
+                IsActive = shortenedUrl.IsActive,
+                AccessCount = shortenedUrl.AccessCount,
+                LastAccessedAt = shortenedUrl.LastAccessedAt
+            };
+            await _cacheService.SetAsync(cacheKey, UpdatedCacheDto, _cacheExpiration);
+            string originalUrlCacheKey = $"originalUrl:{shortenedUrl.OriginalUrl}";
+            await _cacheService.SetAsync(originalUrlCacheKey, shortenedUrl, _cacheExpiration);
             return shortenedUrl.OriginalUrl;
         }
 
@@ -63,17 +99,43 @@ namespace URLShortener.Services
             string cacheKey = $"originalUrl:{originalUrl}";
 
             // Verificar si existe la url en la cache
-            var existUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
+            var cacheUrl = await _cacheService.GetAsync<ShortenedUrlCacheDto>(cacheKey);
+            ShortenedUrl existUrl = null;
 
-            if (existUrl == null)
+            if (cacheUrl == null)
             {
                 // Obtiene la url original de la base de datos
                 existUrl = await _urlRepository.GetByOriginalUrlCodeAsync(originalUrl);
                 if (existUrl != null)
                 {
+                    var cacheDto = new ShortenedUrlCacheDto
+                    {
+                        Id = existUrl.Id,
+                        OriginalUrl = existUrl.OriginalUrl,
+                        ShortCode = existUrl.ShortCode,
+                        CreatedAt = existUrl.CreatedAt,
+                        IsActive = existUrl.IsActive,
+                        AccessCount = existUrl.AccessCount,
+                        LastAccessedAt = existUrl.LastAccessedAt
+                    };
                     // Si la url existe la guarda en la cache
-                    await _cacheService.SetAsync(cacheKey, existUrl, _cacheExpiration);
+                    await _cacheService.SetAsync(cacheKey, cacheDto, _cacheExpiration);
+                    string shortCodeCacheKey = $"shortcode:{existUrl.ShortCode}";
+                    await _cacheService.SetAsync(shortCodeCacheKey, cacheDto, _cacheExpiration);
                 }
+            }
+            else
+            {
+                existUrl = new ShortenedUrl
+                {
+                    Id = cacheUrl.Id,
+                    OriginalUrl = cacheUrl.OriginalUrl,
+                    ShortCode = cacheUrl.ShortCode,
+                    CreatedAt = cacheUrl.CreatedAt,
+                    IsActive = cacheUrl.IsActive,
+                    AccessCount = cacheUrl.AccessCount,
+                    LastAccessedAt = cacheUrl.LastAccessedAt
+                };
             }
 
             if (existUrl != null)
@@ -89,9 +151,7 @@ namespace URLShortener.Services
             }
 
             string shortCode = await GenerateUniqueShortCodeAsync();
-
             DateTime createdAt = DateTime.UtcNow.ToLocalTime();
-            DateTime expiresAt = createdAt.Add(TimeSpan.FromHours(3));
 
 
             var newEntry = new ShortenedUrl
@@ -99,14 +159,30 @@ namespace URLShortener.Services
                 OriginalUrl = originalUrl,
                 ShortCode = shortCode,
                 CreatedAt = createdAt,
+                AccessCount = 0,
+                IsActive = true,
+                LastAccessedAt = null,
                 AccessLogs = new List<UrlAccess>()
             };
 
             await _urlRepository.AddAsync(newEntry);
             await _urlRepository.SaveChangesAsync();
 
+            var newCacheDto = new ShortenedUrlCacheDto
+            {
+                Id = newEntry.Id,
+                OriginalUrl = newEntry.OriginalUrl,
+                ShortCode = newEntry.ShortCode,
+                CreatedAt = newEntry.CreatedAt,
+                IsActive = newEntry.IsActive,
+                AccessCount = newEntry.AccessCount,
+                LastAccessedAt = newEntry.LastAccessedAt
+            };
+
             // Cache para la nueva url acortada
-            await _cacheService.SetAsync(cacheKey, newEntry, _cacheExpiration);
+            await _cacheService.SetAsync(cacheKey, newCacheDto, _cacheExpiration);
+            string newShortCodeCacheKey = $"shortcode:{shortCode}";
+            await _cacheService.SetAsync(newShortCodeCacheKey, newCacheDto, _cacheExpiration);
 
             return new ShortenedUrlDto
             {
@@ -132,9 +208,7 @@ namespace URLShortener.Services
                 {
                     sb.Append(Characters[random.Next(Characters.Length)]);
                 }
-
                 code = sb.ToString();
-
                 // Verificar que el código no exista ya en la base de datos
                 var existingUrl = await _urlRepository.GetByShortCodeAsync(code);
                 if (existingUrl == null)
@@ -144,55 +218,6 @@ namespace URLShortener.Services
             }
 
             return code;
-        }
-        public async Task<ShortenedUrlDto> RenewShortenUrlAsync(string shortcode, string userAgent)
-        {
-
-            string cacheKey = $"shortcode:{shortcode}";
-            var shortenedUrl = await _cacheService.GetAsync<ShortenedUrl>(cacheKey);
-            DateTime nowDateTime = DateTime.UtcNow.ToLocalTime();
-
-            if (shortenedUrl == null)
-            {
-                shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
-                if (shortenedUrl == null || !shortenedUrl.IsActive)
-                {
-                    throw new KeyNotFoundException("URL not found");
-                }
-                await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
-            }
-
-            //if (shortenedUrl.ExpiresAt.HasValue && shortenedUrl.ExpiresAt.Value < nowDateTime)
-            //{
-            //    shortenedUrl.ExpiresAt = nowDateTime.AddHours(3);
-            //}
-            //else
-            //{
-            //    shortenedUrl.ExpiresAt = nowDateTime.AddHours(3);
-            //}
-
-            shortenedUrl.AccessCount++;
-            shortenedUrl.LastAccessedAt = nowDateTime;
-
-            await _urlRepository.SaveChangesAsync();
-            await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
-
-            var urlAccess = new UrlAccess
-            {
-                ShortenedUrlId = shortenedUrl.Id,
-                AccessedAt = nowDateTime,
-                UserAgent = userAgent
-            };
-            await _urlRepository.AddUrlAccess(urlAccess);
-            await _urlRepository.SaveChangesAsync();
-            await _cacheService.SetAsync(cacheKey, shortenedUrl, _cacheExpiration);
-            return new ShortenedUrlDto
-            {
-                OriginalUrl = shortenedUrl.OriginalUrl,
-                ShortCode = shortenedUrl.ShortCode,
-                ShortenedUrl = BaseUrl + shortenedUrl.ShortCode,
-                CreatedAt = shortenedUrl.CreatedAt,
-            };
         }
     }
 }

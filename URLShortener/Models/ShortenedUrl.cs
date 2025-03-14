@@ -1,7 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace URLShortener.Models
 {
+    
     public class ShortenedUrl
     {
         public ShortenedUrl()

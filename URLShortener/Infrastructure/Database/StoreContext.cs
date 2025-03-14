@@ -18,6 +18,9 @@ namespace URLShortener.Infrastructure.Database
                 .WithOne(ua => ua.ShortenedUrl)
                 .HasForeignKey(ua => ua.ShortenedUrlId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ShortenedUrl>()
+                .HasIndex(e => e.ShortCode)
+                .IsUnique();
 
             base.OnModelCreating(modelBuilder);
         }
