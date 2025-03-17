@@ -3,7 +3,7 @@ using URLShortener.DTOs;
 
 namespace URLShortener.Validators
 {
-    public class UrlShortCodeValidator : AbstractValidator<ShortenedUrlDto>
+    public class UrlShortCodeValidator : AbstractValidator<ShortcodeUrlRequestDto>
     {
         public UrlShortCodeValidator()
         {

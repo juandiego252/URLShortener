@@ -13,20 +13,23 @@ namespace URLShortener.Controllers
     public class UrlShortenerController : ControllerBase
     {
         private readonly IUrlShortenerService _urlShortenerService;
-        private readonly IValidator<ShortenedUrlDto> _urlShortCodeValidator;
+        private readonly IValidator<ShortcodeUrlRequestDto> _urlShortCodeValidator;
+        private readonly IValidator<ShortenedUrlDto> _originalUrlValidator;
 
-        public UrlShortenerController(IUrlShortenerService urlShortenerService, IValidator<ShortenedUrlDto> urlShortCodeValidator)
+        public UrlShortenerController(IUrlShortenerService urlShortenerService, IValidator<ShortcodeUrlRequestDto> urlShortCodeValidator, IValidator<ShortenedUrlDto> originalUrlValidator)
         {
             _urlShortenerService = urlShortenerService;
             _urlShortCodeValidator = urlShortCodeValidator;
+            _originalUrlValidator = originalUrlValidator;
         }
 
         [HttpPost("shorten")]
         public async Task<IActionResult> ShortenUrl(string originalUrl)
         {
-            if (string.IsNullOrWhiteSpace(originalUrl))
+           ValidationResult validationResult = _originalUrlValidator.ValidateAsync(new ShortenedUrlDto { OriginalUrl = originalUrl }).Result;
+            if (!validationResult.IsValid)
             {
-                return BadRequest("La url no puede estar vaciá");
+                return BadRequest(validationResult.Errors);
             }
 
             var result = await _urlShortenerService.ShortenUrlAsync(originalUrl);
@@ -36,7 +39,7 @@ namespace URLShortener.Controllers
         [HttpGet("{shortcode}")]
         public async Task<IActionResult> GetOriginalUrl(string shortcode)
         {
-            ValidationResult validationResult = _urlShortCodeValidator.ValidateAsync(new ShortenedUrlDto { ShortCode = shortcode }).Result;
+            ValidationResult validationResult = _urlShortCodeValidator.ValidateAsync(new ShortcodeUrlRequestDto { ShortCode = shortcode }).Result;
 
             if (!validationResult.IsValid)
             {

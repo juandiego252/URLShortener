@@ -29,7 +29,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Validators
-builder.Services.AddScoped<IValidator<ShortenedUrlDto>, UrlShortCodeValidator>();
+builder.Services.AddScoped<IValidator<ShortcodeUrlRequestDto>, UrlShortCodeValidator>();
+builder.Services.AddScoped<IValidator<ShortenedUrlDto>, OriginalUrlValidator>();
 
 // Services
 builder.Services.AddScoped<IUrlShortenerService, UrlShortenerService>();
@@ -43,6 +44,17 @@ builder.Services.AddDbContext<StoreContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StoreConnection"));
 });
 
+// Cors
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NewPolicy", app =>
+    {
+        app.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -53,6 +65,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("NewPolicy");
 
 app.UseAuthorization();
 
