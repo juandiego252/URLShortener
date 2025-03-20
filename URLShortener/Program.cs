@@ -8,15 +8,16 @@ using URLShortener.Models;
 using URLShortener.Repository;
 using URLShortener.Services;
 using URLShortener.Validators;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
 
 // Redis
+var redisConfiguration = builder.Configuration.GetConnectionString("Redis");
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var configuration = builder.Configuration.GetConnectionString("Redis");
-    return ConnectionMultiplexer.Connect(configuration);
+    return ConnectionMultiplexer.Connect(redisConfiguration);
 });
 
 // Cache Service
@@ -44,6 +45,9 @@ builder.Services.AddDbContext<StoreContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StoreConnection"));
 });
 
+// BaseUrl
+builder.Services.AddSingleton(sp => builder.Configuration["BaseUrl"]);
+
 // Cors
 builder.Services.AddCors(options =>
 {
@@ -55,7 +59,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<StoreContext>();
+    if (dbContext.Database.IsRelational())
+    {
+        dbContext.Database.Migrate();
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

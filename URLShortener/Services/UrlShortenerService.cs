@@ -14,14 +14,15 @@ namespace URLShortener.Services
         private readonly IUrlShortenerRepository _urlRepository;
         private readonly ICacheService _cacheService;
         private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(30);
+        private readonly string _baseUrl;
 
         private const string Characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-        private const string BaseUrl = "https://localhost:7034/api/UrlShortener/";
 
-        public UrlShortenerService(IUrlShortenerRepository urlRepository, ICacheService cacheService)
+        public UrlShortenerService(IUrlShortenerRepository urlRepository, ICacheService cacheService, string baseUrl)
         {
             _urlRepository = urlRepository;
             _cacheService = cacheService;
+            _baseUrl = baseUrl;
         }
 
         public async Task<string> GetOriginalUrlAsync(string shortcode, string userAgent)
@@ -98,6 +99,11 @@ namespace URLShortener.Services
         {
             string cacheKey = $"originalUrl:{originalUrl}";
 
+            if (originalUrl.StartsWith(_baseUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("La URL proporcionada ya ha sido acortada por este servicio.");
+            }
+
             // Verificar si existe la url en la cache
             var cacheUrl = await _cacheService.GetAsync<ShortenedUrlCacheDto>(cacheKey);
             ShortenedUrl existUrl = null;
@@ -144,7 +150,8 @@ namespace URLShortener.Services
                 {
                     OriginalUrl = existUrl.OriginalUrl,
                     ShortCode = existUrl.ShortCode,
-                    ShortenedUrl = BaseUrl + existUrl.ShortCode,
+                    ShortenedUrl = _baseUrl + existUrl.ShortCode,
+                    AccessCount = existUrl.AccessCount,
                     CreatedAt = existUrl.CreatedAt,
                 };
 
@@ -188,7 +195,7 @@ namespace URLShortener.Services
             {
                 OriginalUrl = newEntry.OriginalUrl,
                 ShortCode = newEntry.ShortCode,
-                ShortenedUrl = BaseUrl + newEntry.ShortCode,
+                ShortenedUrl = _baseUrl + newEntry.ShortCode,
                 CreatedAt = newEntry.CreatedAt,
             };
         }
