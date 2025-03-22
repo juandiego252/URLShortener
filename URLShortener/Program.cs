@@ -4,7 +4,6 @@ using StackExchange.Redis;
 using URLShortener.DTOs;
 using URLShortener.Infrastructure.cache;
 using URLShortener.Infrastructure.Database;
-using URLShortener.Models;
 using URLShortener.Repository;
 using URLShortener.Services;
 using URLShortener.Validators;
@@ -57,6 +56,11 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
+});
+var redisOptions = await ConfigurationOptions.Parse(builder.Configuration["CacheConnection"]!).ConfigureForAzureWithTokenCredentialAsync(new DefaultAzureCredential());
+builder.Services.AddStackExchangeRedisCache(option =>
+{
+    option.ConfigurationOptions = redisOptions;
 });
 
 

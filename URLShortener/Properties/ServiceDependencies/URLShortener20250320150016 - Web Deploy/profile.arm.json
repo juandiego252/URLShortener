@@ -21,7 +21,7 @@
     },
     "resourceName": {
       "type": "string",
-      "defaultValue": "URLShortener20250320112559",
+      "defaultValue": "URLShortener20250320150016",
       "metadata": {
         "description": "Name of the main resource to be created by this template."
       }
