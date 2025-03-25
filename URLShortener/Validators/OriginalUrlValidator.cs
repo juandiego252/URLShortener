@@ -6,11 +6,11 @@ namespace URLShortener.Validators
 {
     public class OriginalUrlValidator : AbstractValidator<ShortenedUrlDto>
     {
-        private const string BaseUrl = "https://localhost:7034/api/UrlShorten";
+        private const string BaseUrl = "https://urlshortener20250320150016.azurewebsites.net/api/UrlShortener";
         public OriginalUrlValidator()
         {
-            RuleFor(x => x.OriginalUrl).NotEmpty().WithMessage("La url no puede estar vaciá")
-                .Must(BeAValidUrl).WithMessage("The URL is not valid")
+            RuleFor(x => x.OriginalUrl).NotEmpty().WithMessage("The URL cannot be empty.")
+                .Must(BeAValidUrl).WithMessage("The URL is not valid.")
                 .Must(url => !url.StartsWith(BaseUrl, StringComparison.OrdinalIgnoreCase))
                 .WithMessage("The provided URL has already been shortened by this service");
 

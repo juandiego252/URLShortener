@@ -14,9 +14,39 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Redis
 var redisConfiguration = builder.Configuration.GetConnectionString("Redis");
+var options = ConfigurationOptions.Parse(redisConfiguration);
+options.AbortOnConnectFail = false;
+//options.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+//options.ConnectTimeout = 10000; // 10 seconds
+//options.ConnectRetry = 3; // Number of connection retry attempts
+//options.SyncTimeout = 10000;
+options.DefaultDatabase = 0;
+
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    return ConnectionMultiplexer.Connect(redisConfiguration);
+    try
+    {
+        var multiplexer = ConnectionMultiplexer.Connect(options);
+
+        multiplexer.ConnectionFailed += (sender, args) =>
+        {
+            Console.WriteLine($"Redis Connection Failed: {args.Exception.Message}");
+            // Log or handle connection failures
+        };
+
+        multiplexer.ConnectionRestored += (sender, args) =>
+        {
+            Console.WriteLine($"Redis Connection Restored: {args.ConnectionType}");
+        };
+
+        return multiplexer;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Fatal Redis connection error: {ex.Message}");
+        // Consider more robust error handling or logging
+        throw;
+    }
 });
 
 // Cache Service
@@ -56,11 +86,6 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
-});
-var redisOptions = await ConfigurationOptions.Parse(builder.Configuration["CacheConnection"]!).ConfigureForAzureWithTokenCredentialAsync(new DefaultAzureCredential());
-builder.Services.AddStackExchangeRedisCache(option =>
-{
-    option.ConfigurationOptions = redisOptions;
 });
 
 

@@ -30,7 +30,7 @@ namespace URLShortener.Services
 
             string cacheKey = $"shortcode:{shortcode}";
             var cachedUrl = await _cacheService.GetAsync<ShortenedUrlCacheDto>(cacheKey);
-            DateTime nowDateTime = DateTime.UtcNow.ToLocalTime();
+            DateTime nowDateTime = DateTime.UtcNow;
 
             ShortenedUrl shortenedUrl;
 
@@ -39,7 +39,7 @@ namespace URLShortener.Services
                 shortenedUrl = await _urlRepository.GetByShortCodeAsync(shortcode);
                 if (shortenedUrl == null || !shortenedUrl.IsActive)
                 {
-                    throw new KeyNotFoundException("URL not found or Inactive");
+                    throw new KeyNotFoundException($"URL not found or Inactive for shortcode: {shortcode}");
                 }
 
                 var cacheDto = new ShortenedUrlCacheDto
@@ -101,7 +101,7 @@ namespace URLShortener.Services
 
             if (originalUrl.StartsWith(_baseUrl, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("La URL proporcionada ya ha sido acortada por este servicio.");
+                throw new InvalidOperationException("The provided URL has already been shortened by this service.");
             }
 
             // Verificar si existe la url en la cache
@@ -158,7 +158,7 @@ namespace URLShortener.Services
             }
 
             string shortCode = await GenerateUniqueShortCodeAsync();
-            DateTime createdAt = DateTime.UtcNow.ToLocalTime();
+            DateTime createdAt = DateTime.UtcNow;
 
 
             var newEntry = new ShortenedUrl
